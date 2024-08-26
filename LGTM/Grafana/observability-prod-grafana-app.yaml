@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability-prod-grafana
+  namespace: argocd-system
+spec:
+  project: ct-devops-observability
+  sources:
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: grafana
+      targetRevision: "8.3.*"
+      helm:
+        valueFiles:
+        - $values/LGTM/Grafana/observability-prod-grafana-values.yaml
+    - repoURL: ssh://git@GITLAB_OR_GITHUB:2222/devops/oss-helm-values.git
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://GKE_KUBERNETES_SVC_IP # gke-mkt-prod-observability
+    namespace: grafana-system

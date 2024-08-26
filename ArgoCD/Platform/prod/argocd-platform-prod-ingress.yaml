@@ -1,0 +1,78 @@
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  labels:
+    env: prod
+    platform: platform
+    region: asia-northeast3
+    service: argocd    
+  name: backendconfig-argocd-server
+  namespace: argocd-system
+spec:
+  healthCheck:
+    checkIntervalSec: 30
+    healthyThreshold: 1
+    timeoutSec: 5
+    type: HTTP
+    unhealthyThreshold: 2
+    port: 8080
+    requestPath: /healthz
+  logging:
+    enable: true
+    sampleRate: 1
+  securityPolicy:
+    name: cap-mkt-prod-platform-argocd
+  sessionAffinity:
+    affinityType: CLIENT_IP
+  timeoutSec: 3600
+---
+apiVersion: networking.gke.io/v1beta1
+kind: FrontendConfig
+metadata:
+  labels:
+    env: prod
+    platform: platform
+    region: asia-northeast3  
+    service: argocd  
+  name: frontendconfig-argocd-server
+  namespace: argocd-system
+spec:
+  redirectToHttps:
+    enabled: true
+    responseCodeName: "301"
+  sslPolicy: computesslpolicy-argocd-server
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.allow-http: "true"
+    kubernetes.io/ingress.class: gce
+    kubernetes.io/ingress.global-static-ip-name: eip-elb-prod-argocd-server
+    networking.gke.io/v1beta1.FrontendConfig: "frontendconfig-argocd-server"
+    ingress.gcp.kubernetes.io/pre-shared-cert: "SELF_SIGNED_CERT"
+  labels:
+    env: prod
+    platform: platform
+    region: asia-northeast3
+    service: argocd    
+  name: elb-mkt-prod-platform-argocd
+  namespace: argocd-system
+spec:
+  rules:
+  - host: ARGOCD_HOST
+    http:
+      paths:
+      - backend:
+          service:
+            name: argocd-server
+            port:
+              number: 80
+        path: "/"
+        #pathType: ImplementationSpecific
+        pathType: Prefix
+
+---
+
+
+

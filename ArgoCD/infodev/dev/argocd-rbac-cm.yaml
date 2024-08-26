@@ -1,0 +1,23 @@
+# Azure AD #
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd-system
+data:
+  policy.csv: |
+    g, ext, role:extension
+    p, role:extension, applications, get, *, allow
+    p, role:extension, extensions, invoke, *, allow
+    p, role:idp-dev-apps, applications, *, idp-apps-dev/*, allow
+    p, role:idp-dev-apps, logs, *, idp-apps-dev, allow
+    p, role:idp-dev-apps, exec, *, idp-apps-dev, allow
+    p, role:idp-dev-apps, projects, get, idp-apps-dev, allow
+    p, role:readonly-cluster, clusters, get, https://kubernetes.default.svc, allow
+    p, role:manager-repo, repositories, get, *, allow
+    p, role:manager-repo, repositories, create, *, allow
+    p, role:manager-repo, repositories, update, *, allow
+    g, AZURE_AD_GROUP_ID, role:idp-dev-apps-aidev
+    g, AZURE_AD_GROUP_ID, role:readonly-cluster
+    g, AZURE_AD_GROUP_ID, role:manager-repo
+    g, AZURE_AD_GROUP_ID, role:admin

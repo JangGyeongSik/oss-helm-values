@@ -1,0 +1,326 @@
+# Copyright OpenSearch Contributors
+# SPDX-License-Identifier: Apache-2.0
+
+# Default values for opensearch-dashboards.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+opensearchHosts: "https://opensearch-mkt-prod-platform-cluster:9200"
+replicaCount: 1
+
+image:
+  repository: "opensearchproject/opensearch-dashboards"
+  # override image tag, which is .Chart.AppVersion by default
+  tag: ""
+  pullPolicy: "IfNotPresent"
+
+startupProbe:
+  tcpSocket:
+    port: 5601
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 20
+  successThreshold: 1
+  initialDelaySeconds: 10
+
+livenessProbe:
+  tcpSocket:
+    port: 5601
+  periodSeconds: 20
+  timeoutSeconds: 5
+  failureThreshold: 10
+  successThreshold: 1
+  initialDelaySeconds: 10
+
+readinessProbe:
+  tcpSocket:
+    port: 5601
+  periodSeconds: 20
+  timeoutSeconds: 5
+  failureThreshold: 10
+  successThreshold: 1
+  initialDelaySeconds: 10
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+rbac:
+  create: true
+
+# A list of secrets and their paths to mount inside the pod
+# This is useful for mounting certificates for security and for mounting
+# the X-Pack license
+secretMounts: []
+#  - name: certs
+#    secretName: dashboard-certs
+#    path: /usr/share/dashboards/certs
+
+podAnnotations: {}
+
+# Deployment annotations
+dashboardAnnotations: {}
+
+extraEnvs: []
+#  - name: "NODE_OPTIONS"
+#    value: "--max-old-space-size=1800"
+
+envFrom: []
+
+extraVolumes:
+  - name: opensearch-master-tls
+    secret:
+      secretName: opensearch-master-tls
+
+extraVolumeMounts:
+  - name: opensearch-master-tls
+    mountPath: "/usr/share/opensearch-dashboards/config/tls"
+    readOnly: true
+
+extraInitContainers: ""
+
+extraContainers: ""
+
+podSecurityContext: {}
+
+securityContext:
+  capabilities:
+    add: 
+      - NET_ADMIN
+      - SYS_TIME
+    drop:
+      - ALL
+  # readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+config: 
+   ################################################################
+   # Settings must always be the same on all nodes in the cluster.
+   ################################################################
+   opensearch_dashboards.yml: |
+    opensearch:
+      hosts: 
+        - https://opensearch-mkt-prod-platform-cluster:9200
+      username: kibanaserver
+      password: kibanaserver
+      requestHeadersWhitelist:
+        - authorization
+        - securitytenant
+      ssl:
+        certificateAuthorities:
+          - /usr/share/opensearch-dashboards/config/tls/root-ca.pem
+        verificationMode: full
+    opensearch_security:
+      cookie:
+        secure: true
+      multitenancy:
+        enabled: true
+        tenants:
+          preferred:
+            - "Global"
+            - "Private"
+      readonly_mode:
+        roles:
+          - "kibana_read_only"
+    server:
+      ssl:
+        enabled: true
+        certificate: /usr/share/opensearch-dashboards/config/tls/esnode-master.pem 
+        key: /usr/share/opensearch-dashboards/config/tls/esnode-master-key.pem
+
+  #  opensearch_dashboards.yml: |
+  #   server:
+  #     name: dashboards
+  #     host: "{{ .Values.serverHost }}"
+
+
+  # Dashboards TLS Config (Ensure the cert files are present before enabling SSL
+  # ssl:
+  #   enabled: true
+  #   key: /usr/share/opensearch-dashboards/certs/dashboards-key.pem
+  #   certificate: /usr/share/opensearch-dashboards/certs/dashboards-crt.pem
+
+  # determines how dashboards will verify certificates (needs to be none for default opensearch certificates to work)
+  # opensearch:
+  #   ssl:
+  #     certificateAuthorities: /usr/share/opensearch-dashboards/certs/dashboards-root-ca.pem
+  #     if utilizing custom CA certs for connection to opensearch, provide the CA here
+
+opensearchDashboardsYml:
+  defaultMode:
+  # value should be 0-0777
+
+priorityClassName: ""
+
+opensearchAccount:
+  secret: ""
+  keyPassphrase:
+    enabled: false
+
+labels: {}
+
+hostAliases: []
+# - ip: "127.0.0.1"
+#   hostnames:
+#   - "foo.local"
+#   - "bar.local"
+
+serverHost: "0.0.0.0"
+
+service:
+  type: ClusterIP
+  # The IP family and IP families options are to set the behaviour in a dual-stack environment
+  # Omitting these values will let the service fall back to whatever the CNI dictates the defaults
+  # should be
+  #
+  # ipFamilyPolicy: SingleStack
+  # ipFamilies:
+  # - IPv4
+  port: 5601
+  loadBalancerIP: ""
+  nodePort: ""
+  labels: {}
+  annotations:
+    cloud.google.com/neg: '{"ingress": true}'
+    cloud.google.com/backend-config: '{"ports": {"http":"backendconfig-kibana-server"}}' 
+  loadBalancerSourceRanges: []
+  # 0.0.0.0/0
+  httpPortName: http
+
+ingress:
+  enabled: true
+  # For Kubernetes >= 1.18 you should specify the ingress-controller via the field ingressClassName
+  # See https://kubernetes.io/blog/2020/04/02/improvements-to-the-ingress-api-in-kubernetes-1.18/#specifying-the-class-of-an-ingress
+  ingressClassName: external-nginx
+  annotations: 
+      nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/ssl-passthrough: "false"
+      # kubernetes.io/ingress.class: my-nginx
+      nginx.ingress.kubernetes.io/whitelist-source-range: "NGINX_WHITELIST_IP_ADDRESS"
+  labels: {}
+  hosts:
+    - host: KIBANA_HOST
+      paths:
+        - path: /
+          backend:
+            serviceName: kibana-mkt-prod-platform-opensearch-dashboards
+            servicePort: 5601
+  tls: 
+   - secretName: crt-platform-2025
+     hosts:
+       - KIBANA_HOST
+
+resources:
+  limits:
+    cpu: "2.0"
+    memory: "4.0Gi"
+  requests:
+    cpu: "1.0"
+    memory: "3.0Gi"
+
+autoscaling:
+  # This requires metrics server to be installed, to install use kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+  # See https://github.com/kubernetes-sigs/metrics-server
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  # The legacy `targetCPUUtilizationPercentage` key has been deprecated in favor of `targetCPU`
+  targetCPU: "80"
+  targetMemory: "80"
+
+updateStrategy:
+  type: "Recreate"
+
+nodeSelector:
+  cloud.google.com/gke-nodepool: GKE_NODEPOOL_NAME
+
+tolerations: []
+
+affinity: {}
+
+# This is the pod topology spread constraints
+# https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/
+topologySpreadConstraints: []
+
+# -- Array of extra K8s manifests to deploy
+extraObjects: []
+  # - apiVersion: secrets-store.csi.x-k8s.io/v1
+  #   kind: SecretProviderClass
+  #   metadata:
+  #     name: argocd-secrets-store
+  #   spec:
+  #     provider: aws
+  #     parameters:
+  #       objects: |
+  #         - objectName: "argocd"
+  #           objectType: "secretsmanager"
+  #           jmesPath:
+  #               - path: "client_id"
+  #                 objectAlias: "client_id"
+  #               - path: "client_secret"
+  #                 objectAlias: "client_secret"
+  #     secretObjects:
+  #     - data:
+  #       - key: client_id
+  #         objectName: client_id
+  #       - key: client_secret
+  #         objectName: client_secret
+  #       secretName: argocd-secrets-store
+  #       type: Opaque
+  #       labels:
+  #         app.kubernetes.io/part-of: argocd
+  # - |
+  #    apiVersion: policy/v1
+  #    kind: PodDisruptionBudget
+  #    metadata:
+  #      name: {{ template "opensearch-dashboards.fullname" . }}
+  #      labels:
+  #        {{- include "opensearch-dashboards.labels" . | nindent 4 }}
+  #    spec:
+  #      minAvailable: 1
+  #      selector:
+  #        matchLabels:
+#          {{- include "opensearch-dashboards.selectorLabels" . | nindent 6 }}
+
+# pod lifecycle policies as outlined here:
+# https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks
+lifecycle: {}
+  # preStop:
+  #   exec:
+  #     command: ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]
+  # postStart:
+  #   exec:
+  #     command:
+  #       - bash
+  #       - -c
+  #       - |
+  #         #!/bin/bash
+  #         curl -I "http://admin:admin@127.0.0.1:5601/status -H "kbn-xsrf: true" -H 'kbn-xsrf: true' -H "Content-Type: application/json"
+
+## Enable to add 3rd Party / Custom plugins not offered in the default OpenSearchDashboards image.
+plugins:
+  enabled: true
+  installList: [] 
+    # # OpenSearch 알림 플러그인
+    # - https://artifacts.opensearch.org/releases/plugins/opensearch-alerting/opensearch-alerting
+    # # OpenSearch 인덱스 관리 플러그인
+    # - https://artifacts.opensearch.org/releases/plugins/opensearch-index-management/opensearch-index-management
+    # # OpenSearch 성능 분석기 플러그인
+    # - https://artifacts.opensearch.org/releases/plugins/opensearch-performance-analyzer/opensearch-performance-analyzer
+    # # OpenSearch 보안 플러그인
+    # - https://artifacts.opensearch.org/releases/plugins/opensearch-security/opensearch-security
+    # # OpenSearch 이상 탐지 플러그인
+    # - https://artifacts.opensearch.org/releases/plugins/opensearch-anomaly-detection/opensearch-anomaly-detection
+    # # OpenSearch 작업 스케줄러 플러그인
+    # - https://artifacts.opensearch.org/releases/plugins/opensearch-job-scheduler/opensearch-job-scheduler

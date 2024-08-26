@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd-system
+data:
+  policy.csv: |
+    p, role:platform-apps-adm, applications, *, platform-apps-prod/*, allow
+    p, role:platform-apps-adm, logs, *, platform-apps-prod, allow
+    p, role:platform-apps-adm, exec, *, platform-apps-prod, allow
+    p, role:platform-apps-adm, projects, get, platform-apps-prod, allow
+    p, role:platform-apps-adm, projects, update, platform-apps-prod, allow
+    p, role:platform-apps-adm, projects, delete, platform-apps-prod, allow
+    p, role:platform-apps-adm, applications, *, platform-apps-search-prod/*, allow
+    p, role:platform-apps-adm, logs, *, platform-apps-search-prod, allow
+    p, role:platform-apps-adm, exec, *, platform-apps-search-prod, allow
+    p, role:platform-apps-adm, projects, get, platform-apps-search-prod, allow
+    p, role:platform-apps-adm, projects, update, platform-apps-search-prod, allow
+    p, role:platform-apps-adm, projects, delete, platform-apps-search-prod, allow
+    p, role:platform-apps-adm, clusters, get, https://kubernetes.default.svc, allow
+    p, role:platform-apps-adm, repositories, *, *, allow
+    p, role:platform-apps-adm, repositories, *, platform-apps-prod/*, allow
+    p, role:platform-apps-adm, repositories, *, platform-apps-search-prod/*, allow    
+    g, seyu, role:platform-apps-adm
+    g, yuli, role:platform-apps-adm
+    g, aben, role:platform-apps-adm
+    g, bazhang, role:platform-apps-adm
+    g, jawu, role:platform-apps-adm
+    g, jimyang, role:platform-apps-adm
+    g, pchau, role:platform-apps-adm
+    g, ppeng, role:platform-apps-adm
+    g, jgs, role:platform-apps-adm    
+  policy.default: ""
+  policy.matchMode: glob
+  scopes: '[groups,email]'

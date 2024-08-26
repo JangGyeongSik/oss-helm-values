@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kibana-mkt-prod-platform
+  namespace: argocd-system
+spec:
+  project: platform-prod-mgmt
+  sources:
+    - repoURL: https://opensearch-project.github.io/helm-charts
+      chart: opensearch-dashboards 
+      targetRevision: "2.19.0"
+      helm:
+        valueFiles:
+        - $values/OpenSearch/Platform/prod/opensearch-prod-platform-dashboards-values.yaml
+    - repoURL: ssh://git@GITLAB_OR_GITHUB:2222/devops/oss-helm-values.git
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: opensearch-system

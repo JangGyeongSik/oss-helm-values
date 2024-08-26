@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd-system
+data:
+  policy.csv: |
+    p, role:platform-apps-1ss-adm, applications, *, platform-apps-1ss-dev, allow
+    p, role:platform-apps-1ss-adm, logs, *, platform-apps-1ss-dev, allow
+    p, role:platform-apps-1ss-adm, exec, *, platform-apps-1ss-dev, allow
+    p, role:platform-apps-1ss-adm, projects, get, platform-apps-1ss-dev, allow
+    p, role:platform-apps-1ss-adm, applications, *, platform-apps-1ss-stage, allow
+    p, role:platform-apps-1ss-adm, logs, *, platform-apps-1ss-stage, allow
+    p, role:platform-apps-1ss-adm, exec, *, platform-apps-1ss-stage, allow
+    p, role:platform-apps-1ss-adm, projects, get, platform-apps-1ss-stage, allow
+    p, role:platform-apps-1ss-adm, clusters, get, https://kubernetes.default.svc, allow
+    g, seyu, role:platform-apps-1ss-adm
+    g, yuli, role:platform-apps-1ss-adm
+    g, aben, role:platform-apps-1ss-adm
+    g, bazhang, role:platform-apps-1ss-adm
+    g, jawu, role:platform-apps-1ss-adm
+    g, jimyang, role:platform-apps-1ss-adm
+    g, pcahu, role:platform-apps-1ss-adm
+    g, ppeng, role:platform-apps-1ss-adm

@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb-express-mkt-prod-platform
+  labels: 
+    app: mongodb-express-mkt-prod-platform
+    app.kubernetes.io/instance: mongodb-mkt-prod-platform
+  namespace: mongodb-system
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mongodb-express-mkt-prod-platform
+      app.kubernetes.io/instance: mongodb-mkt-prod-platform
+  template:
+    metadata:
+      labels:
+        app: mongodb-express-mkt-prod-platform
+        app.kubernetes.io/instance: mongodb-mkt-prod-platform
+    spec:
+      tolerations:
+        - key: dedicated
+          operator: Equal
+          value: mongodb
+          effect: NoSchedule
+      containers:
+      - image: docker.io/library/mongo-express:1.0.2
+        imagePullPolicy: Always
+        name: mongo-express
+        env:
+          - name: ME_CONFIG_MONGODB_ADMINUSERNAME
+            value: "root"
+          - name: ME_CONFIG_MONGODB_ADMINPASSWORD
+            value: "platform1ss06platform1ss06"
+          - name: ME_CONFIG_BASICAUTH_USERNAME
+            value: "admin"
+          - name: ME_CONFIG_BASICAUTH_PASSWORD
+            value: "QOo1009)!"
+          # - name: ME_CONFIG_MONGODB_ENABLE_ADMIN 
+          #   value: "true"
+          # - name: ME_CONFIG_MONGODB_AUTH_DATABASE 
+          #   value: "admin?replicaset=rs0"
+          # - name: ME_CONFIG_MONGODB_AUTH_USERNAME 
+          #   value: "root"
+          # - name: ME_CONFIG_MONGODB_AUTH_PASSWORD 
+          #   value: ""
+          - name: ME_CONFIG_MONGODB_SERVER
+            value: "mongodb-mkt-prod-platform-headless.mongodb-system.svc.platform-ecosystem-prod-01.gke."
+            # value: "mongodb-mkt-prod-platform-0.mongodb-mkt-prod-platform-headless.mongodb-system.svc.cluster.local"
+        ports:
+          - containerPort: 8081
+            name: mongo-express
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "200m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        livenessProbe:
+         tcpSocket:
+           port: 8081
+         initialDelaySeconds: 600
+         periodSeconds: 10
+        readinessProbe:
+         tcpSocket:
+           port: 8081
+         initialDelaySeconds: 30
+         periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb-express-mkt-prod-platform-svc
+spec:
+  selector:
+    app: mongodb-express-mkt-prod-platform
+    app.kubernetes.io/instance: mongodb-mkt-prod-platform
+  ports:
+    - protocol: TCP
+      port: 8081
+      targetPort: 8081

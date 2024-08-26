@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mongodb-mkt-prod-platform
+  namespace: argocd-system
+spec:
+  project: platform-prod-mgmt
+  sources:
+    - repoURL: https://charts.bitnami.com/bitnami
+      chart: mongodb
+      targetRevision: "15.6.6"
+      helm:
+        valueFiles:
+        - $values/MongoDB/platform/prod/platform-prod-mongodb-values.yaml
+    - repoURL: ssh://git@GITLAB_OR_GITHUB:2222/oss-helm-values.git
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mongodb-system

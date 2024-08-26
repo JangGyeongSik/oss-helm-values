@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mongodb-mkt-dev-platform
+  namespace: mongodb-system
+spec:
+  project: platform-dev-mgmt
+  sources:
+    - repoURL: https://charts.bitnami.com/bitnami
+      chart: mongodb
+      targetRevision: "15.6.6"
+      helm:
+        valueFiles:
+        - $values/MongoDB/Platform/dev/platform-dev-mongodb-values.yaml
+    - repoURL: ssh://git@git@GITLAB_OR_GITHUB:2222/devops/oss-helm-values.git
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mongodb-system

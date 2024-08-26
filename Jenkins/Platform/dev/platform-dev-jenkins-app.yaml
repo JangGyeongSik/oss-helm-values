@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: jenkins-mkt-dev-platform
+  namespace: argocd-system
+spec:
+  project: platform-dev-mgmt
+  sources:
+    - repoURL: https://charts.jenkins.io
+      chart: jenkins
+      targetRevision: "5.2.1"
+      helm:
+        valueFiles:
+        - $values/Jenkins/Platform/dev/platform-dev-jenkins-values.yaml
+    - repoURL: ssh://git@GITHUB_OR_GITLAB:2222/devops/oss-helm-values.git
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: jenkins-system

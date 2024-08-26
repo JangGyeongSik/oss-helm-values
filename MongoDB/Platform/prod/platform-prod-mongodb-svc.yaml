@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    networking.gke.io/load-balancer-type: Internal
+  labels:
+    app.kubernetes.io/component: mongodb
+    app.kubernetes.io/instance: mongodb-mkt-prod-platform
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mongodb
+    app.kubernetes.io/version: 7.0.11
+    argocd.argoproj.io/instance: mongodb-mkt-prod-platform
+    helm.sh/chart: mongodb-15.6.6
+  name: ilb-mkt-prod-platform-mongodb
+  namespace: mongodb-system
+spec:
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+  - name: mongodb
+    port: 27017
+    protocol: TCP
+    targetPort: mongodb
+  selector:
+    app.kubernetes.io/component: mongodb
+    app.kubernetes.io/instance: mongodb-mkt-prod-platform
+    app.kubernetes.io/name: mongodb
+  sessionAffinity: None
+  type: LoadBalancer

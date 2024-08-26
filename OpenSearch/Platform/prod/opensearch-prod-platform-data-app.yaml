@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: opensearch-mkt-prod-platform-data
+  namespace: argocd-system
+spec:
+  project: platform-prod-mgmt
+  sources:
+    - repoURL: https://opensearch-project.github.io/helm-charts
+      chart: opensearch 
+      targetRevision: "2.21.0"
+      helm:
+        valueFiles:
+        - $values/OpenSearch/platform/prod/opensearch-prod-platform-data-values.yaml
+    - repoURL: ssh://git@GITLAB_OR_GITHUB:2222/devops/oss-helm-values.git
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: opensearch-system

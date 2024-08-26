@@ -1,0 +1,819 @@
+---
+clusterName: "opensearch-mkt-prod-platform-cluster"
+nodeGroup: "master"
+
+# If discovery.type in the opensearch configuration is set to "single-node",
+# this should be set to "true"
+# If "true", replicas will be forced to 1
+singleNode: false
+
+# The service that non master groups will try to connect to when joining the cluster
+# This should be set to clusterName + "-" + nodeGroup for your master group
+masterService: "opensearch-mkt-prod-platform-cluster"
+
+# OpenSearch roles that will be applied to this nodeGroup
+# These will be set as environment variable "node.roles". E.g. node.roles=master,ingest,data,remote_cluster_client
+roles:
+  - master
+  - remote_cluster_client
+
+replicas: 3
+
+# if not set, falls back to parsing .Values.imageTag, then .Chart.appVersion.
+majorVersion: ""
+
+global:
+  # Set if you want to change the default docker registry, e.g. a private one.
+  dockerRegistry: ""
+
+# Allows you to add any config files in {{ .Values.opensearchHome }}/config
+opensearchHome: /usr/share/opensearch
+
+# such as opensearch.yml and log4j2.properties
+config:
+  # Values must be YAML literal style scalar / YAML multiline string.
+  # <filename>: |
+  #   <formatted-value(s)>
+  # log4j2.properties: |
+  #   status = error
+  #
+  #   appender.console.type = Console
+  #   appender.console.name = console
+  #   appender.console.layout.type = PatternLayout
+  #   appender.console.layout.pattern = [%d{ISO8601}][%-5p][%-25c{1.}] [%node_name]%marker %m%n
+  #
+  #   rootLogger.level = info
+  #   rootLogger.appenderRef.console.ref = console
+  opensearch.yml: |
+    cluster.name: opensearch-mkt-prod-platform-cluster
+
+    # Bind to all interfaces because we don't know what IP address Docker will assign to us.
+    network.host: 0.0.0.0
+
+    http:
+      host: 0.0.0.0
+      port: 9200
+
+    cluster.initial_cluster_manager_nodes: ["opensearch-mkt-prod-platform-cluster-master-0","opensearch-mkt-prod-platform-cluster-master-1","opensearch-mkt-prod-platform-cluster-master-2"]
+    discovery.seed_hosts: ["opensearch-mkt-prod-platform-cluster","opensearch-mkt-prod-platform-cluster-headless","opensearch-mkt-prod-platform-cluster-data","opensearch-mkt-prod-platform-cluster-data-headless"]
+    # discovery.seed_hosts: ["opensearch-mkt-prod-platform-cluster-master-0","opensearch-mkt-prod-platform-cluster-master-1","opensearch-mkt-prod-platform-cluster-master-2"]
+        
+    # Setting network.host to a non-loopback address enables the annoying bootstrap checks. "Single-node" mode disables them again.
+    # Implicitly done if ".singleNode" is set to "true".
+    # discovery.type: single-node
+
+    # Start OpenSearch Security Demo Configuration
+    # WARNING: revise all the lines below before you go into production
+
+    plugins:
+      security:
+        disabled: false
+        allow_unsafe_democertificates: false
+        allow_default_init_securityindex: true
+        authcz:
+          admin_dn:
+            - CN=admin,OU=Platform,O=Platform,L=SEOUL,ST=SEOUL,C=KR
+        nodes_dn:
+          - CN=opensearch-mkt-prod-platform-cluster,OU=Platform,O=Platform,L=SEOUL,ST=SEOUL,C=KR
+          - CN=opensearch-mkt-prod-platform-cluster,OU=Platform,O=Platform,L=SEOUL,ST=SEOUL,C=KR
+          - CN=opensearch-mkt-prod-platform-cluster,OU=Platform,O=Platform,L=SEOUL,ST=SEOUL,C=KR
+        ssl:
+          transport:
+            enabled: true
+            pemcert_filepath: /usr/share/opensearch/config/tls/esnode-master.pem
+            pemkey_filepath: /usr/share/opensearch/config/tls/esnode-master-key.pem
+            pemtrustedcas_filepath: /usr/share/opensearch/config/tls/root-ca.pem
+            enforce_hostname_verification: false
+          http:
+            enabled: true
+            enabled_protocols:
+              - "TLSv1"
+              - "TLSv1.1"
+              - "TLSv1.2"
+            pemcert_filepath: /usr/share/opensearch/config/tls/esnode-master.pem
+            pemkey_filepath: /usr/share/opensearch/config/tls/esnode-master-key.pem
+            pemtrustedcas_filepath: /usr/share/opensearch/config/tls/root-ca.pem
+        audit.type: internal_opensearch
+        enable_snapshot_restore_privilege: true
+        check_snapshot_restore_write_privileges: true
+        restapi:
+          roles_enabled: ["all_access", "security_rest_api_access"]
+        system_indices:
+          enabled: true
+          indices:
+            [
+              ".opendistro-alerting-config",
+              ".opendistro-alerting-alert*",
+              ".opendistro-anomaly-results*",
+              ".opendistro-anomaly-detector*",
+              ".opendistro-anomaly-checkpoints",
+              ".opendistro-anomaly-detection-state",
+              ".opendistro-reports-*",
+              ".opendistro-notifications-*",
+              ".opendistro-notebooks",
+              ".opendistro-asynchronous-search-response*",
+            ]
+    ######## End OpenSearch Security Demo Configuration ########
+  # log4j2.properties:
+
+# Extra environment variables to append to this nodeGroup
+# This will be appended to the current 'env:' key. You can use any of the kubernetes env
+# syntax here
+# extraEnvs: []
+extraEnvs:
+  # - name: JAVA_OPTS
+  #   value: "-Djavax.net.ssl.trustStore=/certificates/cacerts"
+  - name: OPENSEARCH_INITIAL_ADMIN_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: opensearch-admin-password
+        key: OPENSEARCH_INITIAL_ADMIN_PASSWORD
+  - name: DISABLE_INSTALL_DEMO_CONFIG
+    value: "true"
+#  - name: MY_ENVIRONMENT_VAR
+#    value: the_value_goes_here
+# Chart version 2.18.0 and App Version OpenSearch 2.12.0 onwards a custom strong password needs to be provided in order to setup demo admin user.
+# Cluster will not spin-up without this unless demo config install is disabled.
+#  - name: OPENSEARCH_INITIAL_ADMIN_PASSWORD
+#    value: <strong-password>
+
+# Allows you to load environment variables from kubernetes secret or config map
+envFrom: 
+- secretRef:
+    name: opensearch-admin-password
+# - configMapRef:
+#     name: config-map
+
+# A list of secrets and their paths to mount inside the pod
+# This is useful for mounting certificates for security and for mounting
+# the X-Pack license
+secretMounts: []
+
+hostAliases: []
+# - ip: "127.0.0.1"
+#   hostnames:
+#   - "foo.local"
+#   - "bar.local"
+
+image:
+  repository: "opensearchproject/opensearch"
+  # override image tag, which is .Chart.AppVersion by default
+  tag: ""
+  pullPolicy: "IfNotPresent"
+
+podAnnotations: {}
+  # iam.amazonaws.com/role: es-cluster
+
+# OpenSearch Statefulset annotations
+openSearchAnnotations: {}
+
+# additionals labels
+labels: {}
+
+opensearchJavaOpts: "-Xms2g -Xmx2g"
+
+resources:
+  limits:
+    cpu: "2.0"
+    memory: "4Gi"
+  requests:
+    cpu: "1.0"
+    memory: "3Gi"
+
+initResources: {}
+#  limits:
+#     cpu: "25m"
+#     memory: "128Mi"
+#  requests:
+#     cpu: "25m"
+#     memory: "128Mi"
+
+sidecarResources: {}
+#   limits:
+#     cpu: "25m"
+#     memory: "128Mi"
+#   requests:
+#     cpu: "25m"
+#     memory: "128Mi"
+
+networkHost: "0.0.0.0"
+
+rbac:
+  create: false
+  serviceAccountAnnotations: {}
+  serviceAccountName: ""
+  # Controls whether or not the Service Account token is automatically mounted to /var/run/secrets/kubernetes.io/serviceaccount
+  automountServiceAccountToken: false
+
+podSecurityPolicy:
+  create: false
+  name: ""
+  spec:
+    privileged: true
+    fsGroup:
+      rule: RunAsAny
+    runAsUser:
+      rule: RunAsAny
+    seLinux:
+      rule: RunAsAny
+    supplementalGroups:
+      rule: RunAsAny
+    volumes:
+      - secret
+      - configMap
+      - persistentVolumeClaim
+      - emptyDir
+
+persistence:
+  enabled: true
+  # Set to false to disable the `fsgroup-volume` initContainer that will update permissions on the persistent disk.
+  enableInitChown: true
+  # override image, which is busybox by default
+  # image: busybox
+  # override image tag, which is latest by default
+  # imageTag:
+  labels:
+    enabled: true
+    environment: dev
+    region: asia-northeast3
+    platform: platform
+    target: opensearch-manager
+  # OpenSearch Persistent Volume Storage Class
+  # If defined, storageClassName: <storageClass>
+  # If set to "-", storageClassName: "", which disables dynamic provisioning
+  # If undefined (the default) or set to null, no storageClassName spec is
+  #   set, choosing the default provisioner.  (gp2 on AWS, standard on
+  #   GKE, AWS & OpenStack)
+  #
+  storageClass: "pd-balanced"
+  accessModes:
+    - ReadWriteOnce
+  size: 8Gi
+  annotations: {}
+
+extraVolumes:
+  - name: opensearch-master-tls
+    secret:
+      secretName: opensearch-master-tls
+
+extraVolumeMounts:
+  - name: opensearch-master-tls
+    mountPath: "/usr/share/opensearch/config/tls"
+    readOnly: true
+
+extraContainers: []
+  # - name: do-something
+  #   image: busybox
+  #   command: ['do', 'something']
+
+extraInitContainers: []
+  # - name: do-somethings
+  #   image: busybox
+  #   command: ['do', 'something']
+
+# This is the PriorityClass settings as defined in
+# https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption/#priorityclass
+priorityClassName: ""
+
+# By default this will make sure two pods don't end up on the same node
+# Changing this to a region would allow you to spread pods across regions
+# antiAffinityTopologyKey: "kubernetes.io/hostname"
+antiAffinityTopologyKey: none
+# Hard means that by default pods will only be scheduled if there are enough nodes for them
+# and that they will never end up on the same node. Setting this to soft will do this "best effort".
+# Setting this to custom will use what is passed into customAntiAffinity.
+# antiAffinity: {}
+antiAffinity: none
+  # podAntiAffinity:
+  #   preferredDuringSchedulingIgnoredDuringExecution:
+  #     - weight: 100
+  #       podAffinityTerm:
+  #         topologyKey: "kubernetes.io/hostname"
+  #         labelSelector:
+  #           matchLabels:
+  #             app.kubernetes.io/name: "opensearch"
+  #             app.kubernetes.io/instance: "release-name"
+
+# Allows passing in custom anti-affinity settings as defined in
+# https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#types-of-inter-pod-affinity-and-anti-affinity
+# Using this parameter requires setting antiAffinity to custom.
+customAntiAffinity: {}
+# customAntiAffinity:
+#   podAntiAffinity:
+#     preferredDuringSchedulingIgnoredDuringExecution:
+#     - weight: 100
+#       podAffinityTerm:
+#         topologyKey: "kubernetes.io/hostname"
+#         labelSelector:
+#           matchLabels:
+#             app.kubernetes.io/name: "opensearch"
+#             app.kubernetes.io/instance: "release-name"
+
+
+# This is the node affinity settings as defined in
+# https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#node-affinity-beta-feature
+nodeAffinity: {}
+# nodeAffinity:
+#   requiredDuringSchedulingIgnoredDuringExecution:
+#     nodeSelectorTerms:
+#       - matchExpressions:
+#           - key: "cloud.google.com/gke-nodepool"
+#             operator: In
+#             values:
+#               - "npg-01-asia-northeast3-c-muskrat"
+
+# This is the pod affinity settings as defined in
+# https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#types-of-inter-pod-affinity-and-anti-affinity
+podAffinity: {}
+
+# This is the pod topology spread constraints
+# https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/
+topologySpreadConstraints: []
+
+# The default is to deploy all pods serially. By setting this to parallel all pods are started at
+# the same time when bootstrapping the cluster
+podManagementPolicy: "Parallel"
+
+# The environment variables injected by service links are not used, but can lead to slow OpenSearch boot times when
+# there are many services in the current namespace.
+# If you experience slow pod startups you probably want to set this to `false`.
+enableServiceLinks: true
+
+protocol: https
+httpPort: 9200
+transportPort: 9300
+metricsPort: 9600
+httpHostPort: ""
+transportHostPort: ""
+
+
+service:
+  labels: {}
+  labelsHeadless: {}
+  headless:
+    annotations: {}
+  type: ClusterIP
+  # The IP family and IP families options are to set the behaviour in a dual-stack environment
+  # Omitting these values will let the service fall back to whatever the CNI dictates the defaults
+  # should be
+  #
+  # ipFamilyPolicy: SingleStack
+  # ipFamilies:
+  # - IPv4
+  nodePort: ""
+  annotations:
+    cloud.google.com/neg: '{"ingress": true}'
+    cloud.google.com/backend-config: '{"ports": {"http":"backendconfig-opensearch-manager"}}' 
+  httpPortName: http
+  transportPortName: transport
+  metricsPortName: metrics
+  loadBalancerIP: ""
+  loadBalancerSourceRanges: []
+  externalTrafficPolicy: ""
+
+updateStrategy: RollingUpdate
+
+# This is the max unavailable setting for the pod disruption budget
+# The default value of 1 will make sure that kubernetes won't allow more than 1
+# of your pods to be unavailable during maintenance
+maxUnavailable: 1
+
+podSecurityContext:
+  fsGroup: 1000
+  runAsUser: 1000
+
+securityContext:
+  capabilities:
+    add: 
+      - NET_ADMIN
+      - SYS_TIME
+    drop:
+      - ALL
+  # readOnlyRootFilesystem: true
+  runAsNonRoot: false
+  runAsUser: 1000
+
+securityConfig:
+  enabled: true
+  path: "/usr/share/opensearch/plugins/opensearch-security/securityconfig"
+  # path: "/usr/share/opensearch/config/opensearch-security"
+  actionGroupsSecret:
+  configSecret:
+  internalUsersSecret:
+  rolesSecret:
+  rolesMappingSecret:
+  tenantsSecret:
+  # The following option simplifies securityConfig by using a single secret and
+  # specifying the config files as keys in the secret instead of creating
+  # different secrets for for each config file.
+  # Note that this is an alternative to the individual secret configuration
+  # above and shouldn't be used if the above secrets are used.
+  config:
+    # There are multiple ways to define the configuration here:
+    # * If you define anything under data, the chart will automatically create
+    #   a secret and mount it. This is best option to choose if you want to override all the
+    #   existing yml files at once.
+    # * If you define securityConfigSecret, the chart will assume this secret is
+    #   created externally and mount it. This is best option to choose if your intention is to
+    #   only update a single yml file.
+    # * It is an error to define both data and securityConfigSecret.
+    securityConfigSecret: ""
+    dataComplete: true
+    data: 
+      internal_users.yml: |
+        ################################################################
+        # Settings must always be the same on all nodes in the cluster.
+        ################################################################
+
+        _meta:
+          type: "internalusers"
+          config_version: 2
+
+        ################################################################
+
+        # This is the internal user database
+        # The hash value is a bcrypt hash and can be generated with /usr/share/opensearch/plugins/opensearch-security/tools/hash.sh
+
+        admin:
+          hash: "$2y$12$gas37IsATPdAepLk.yA1X.co1J1w7ZrR6q8MCnfKEo.ievd/u7.SC"
+          hidden: false
+          reserved: true
+          backend_roles:
+          - "admin"
+
+        mint:
+          hidden: false
+          reserved: false
+          backend_roles:
+          - "kibanauser"
+          - "readall"
+
+        podcast:
+          hidden: false
+          reserved: false
+          backend_roles:
+          - "admin"
+          - "kibanauser"
+          - "readall"
+
+        prometheus:
+          hidden: false
+          reserved: false
+          backend_roles: []
+
+        trevi:
+          hidden: false
+          reserved: false
+          backend_roles:
+          - "kibanauser"
+          - "readall"
+
+        titan:
+          hidden: false
+          reserved: false
+          backend_roles:
+          - "kibanauser"
+          - "readall"
+
+        zimablue:
+          hidden: false
+          reserved: false
+          backend_roles:
+          - "kibanauser"
+          - "readall"
+
+      internal_users_source_code.yml: |
+        ---
+        # This is the internal user database
+        # The hash value is a bcrypt hash and can be generated with plugin/tools/hash.sh
+
+        _meta:
+          type: "internalusers"
+          config_version: 2
+
+        # Define your internal users here
+
+        ## Demo users
+
+        admin:
+          hash: "$2y$12$gas37IsATPdAepLk.yA1X.co1J1w7ZrR6q8MCnfKEo.ievd/u7.SC"
+          reserved: true
+          backend_roles:
+          - "admin"
+          description: "Demo admin user"
+          
+        kibanaserver:
+          hash: "$2y$12$gas37IsATPdAepLk.yA1X.co1J1w7ZrR6q8MCnfKEo.ievd/u7.SC"
+          reserved: true
+          description: "Demo OpenSearch Dashboards user"
+
+      roles.yml: |
+        ################################################################
+        # Settings must always be the same on all nodes in the cluster.
+        ################################################################
+
+        _meta:
+          type: "roles"
+          config_version: 2
+
+        ################################################################
+
+        crud_role:
+          hidden: false
+          reserved: false
+          cluster_permissions:
+            - cluster_monitor
+          index_permissions:
+            - allowed_actions:
+                - create_index
+                - crud
+                - delete
+                - get
+                - indices_all
+                - manage_aliases
+                - read
+                - search
+                - write
+              index_patterns:
+                - "*"
+
+        prometheus_role:
+          hidden: false
+          reserved: false
+          cluster_permissions:
+            - cluster_composite_ops
+            - cluster_monitor
+          index_permissions:
+            - allowed_actions:
+                - get
+                - indices_monitor
+                - read
+                - search
+              index_patterns:
+                - "*"
+
+      roles_mapping.yml: |
+        ################################################################
+        # Settings must always be the same on all nodes in the cluster.
+        ################################################################
+
+        _meta:
+          type: "rolesmapping"
+          config_version: 2
+
+        ################################################################
+
+        all_access:
+          hidden: false
+          reserved: false
+          and_backend_roles: []
+          backend_roles:
+            - "admin"
+          hosts: []
+          users:
+            - "admin"
+            - "podcast"
+
+        cross_cluster_replication_follower_full_access:
+          hidden: false
+          reserved: false
+          and_backend_roles: []
+          backend_roles:
+            - "admin"
+          hosts: []
+          users:
+            - "admin"
+            - "podcast"
+
+        cross_cluster_replication_leader_full_access:
+          hidden: false
+          reserved: false
+          and_backend_roles: []
+          backend_roles:
+            - "admin"
+          hosts: []
+          users:
+            - "admin"
+            - "podcast"
+
+        crud_role:
+          hidden: false
+          reserved: false
+          and_backend_roles: []
+          backend_roles: []
+          hosts: []
+          users:
+            - "mint"
+            - "trevi"
+            - "titan"
+            - "zimablue"
+
+        prometheus_role:
+          hidden: false
+          reserved: false
+          and_backend_roles: []
+          backend_roles: []
+          hosts: []
+          users:
+            - "prometheus"
+
+      roles_mapping_source_code.yml: |
+        ---
+        # In this file users, backendroles and hosts can be mapped to Security roles.
+        # Permissions for OpenSearch roles are configured in roles.yml
+
+        _meta:
+          type: "rolesmapping"
+          config_version: 2
+
+        # Define your roles mapping here
+
+        ## Demo roles mapping
+
+        all_access:
+          reserved: false
+          backend_roles:
+          - "admin"
+          description: "Maps admin to all
+
+      # action_groups.yml: |-
+      # tenants.yml: |-
+
+# How long to wait for opensearch to stop gracefully
+terminationGracePeriod: 0
+
+sysctlVmMaxMapCount: 262144
+
+startupProbe:
+  tcpSocket:
+    port: 9200
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 30
+
+livenessProbe: {}
+  # periodSeconds: 20
+  # timeoutSeconds: 5
+  # failureThreshold: 10
+  # successThreshold: 1
+  # initialDelaySeconds: 10
+  # tcpSocket:
+  #   port: 9200
+
+readinessProbe:
+  tcpSocket:
+    port: 9200
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+## Use an alternate scheduler.
+## ref: https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers/
+##
+schedulerName: ""
+
+imagePullSecrets: []
+nodeSelector:
+  cloud.google.com/gke-nodepool: "npg-01-asia-northeast3-c-muskrat" #OpenSearch Manager Node Pool
+tolerations:
+  - key: dedicated
+    operator: Equal
+    value: opensearch-manager
+    effect: NoSchedule
+
+# Enabling this will publically expose your OpenSearch instance.
+# Only enable this if you have security enabled on your cluster
+ingress:
+  enabled: true
+  # For Kubernetes >= 1.18 you should specify the ingress-controller via the field ingressClassName
+  # See https://kubernetes.io/blog/2020/04/02/improvements-to-the-ingress-api-in-kubernetes-1.18/#specifying-the-class-of-an-ingress
+  ingressClassName: internal-nginx
+  annotations: 
+      nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/ssl-passthrough: "false"
+      # kubernetes.io/ingress.class: my-nginx
+      nginx.ingress.kubernetes.io/whitelist-source-range: "NGINX_WHITELIST_IP_RANGE"
+  ingressLabels: {}
+  path: /
+  hosts:
+    - OPENSEARCH_HOST
+  tls: 
+   - secretName: crt-platform-2025
+     hosts:
+       - OPENSEARCH_HOST
+
+nameOverride: ""
+fullnameOverride: ""
+
+masterTerminationFix: false
+
+opensearchLifecycle: {}
+  # preStop:
+  #   exec:
+  #     command: ["/bin/sh", "-c", "echo Hello from the preStart handler > /usr/share/message"]
+  # postStart:
+  #   exec:
+  #     command: ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]
+
+lifecycle: {}
+  # preStop:
+  #   exec:
+  #     command: ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]
+  # postStart:
+  #   exec:
+  #     command:
+  #       - bash
+  #       - -c
+  #       - |
+  #         #!/bin/bash
+  #         # Add a template to adjust number of shards/replicas1
+  #         TEMPLATE_NAME=my_template
+  #         INDEX_PATTERN="logstash-*"
+  #         SHARD_COUNT=8
+  #         REPLICA_COUNT=1
+  #         ES_URL=http://localhost:9200
+  #         while [[ "$(curl -s -o /dev/null -w '%{http_code}\n' $ES_URL)" != "200" ]]; do sleep 1; done
+  #         curl -XPUT "$ES_URL/_template/$TEMPLATE_NAME" -H 'Content-Type: application/json' -d'{"index_patterns":['\""$INDEX_PATTERN"\"'],"settings":{"number_of_shards":'$SHARD_COUNT',"number_of_replicas":'$REPLICA_COUNT'}}'
+
+keystore: []
+# To add secrets to the keystore:
+#  - secretName: opensearch-encryption-key
+
+networkPolicy:
+  create: false
+  ## Enable creation of NetworkPolicy resources. Only Ingress traffic is filtered for now.
+  ## In order for a Pod to access OpenSearch, it needs to have the following label:
+  ## {{ template "uname" . }}-client: "true"
+  ## Example for default configuration to access HTTP port:
+  ## opensearch-master-http-client: "true"
+  ## Example for default configuration to access transport port:
+  ## opensearch-master-transport-client: "true"
+
+  http:
+    enabled: true
+
+# Deprecated
+# please use the above podSecurityContext.fsGroup instead
+fsGroup: ""
+
+## Set optimal sysctl's through securityContext. This requires privilege. Can be disabled if
+## the system has already been preconfigured. (Ex: https://www.elastic.co/guide/en/elasticsearch/reference/current/vm-max-map-count.html)
+## Also see: https://kubernetes.io/docs/tasks/administer-cluster/sysctl-cluster/
+sysctl:
+  enabled: false
+
+## Set optimal sysctl's through privileged initContainer.
+sysctlInit:
+  enabled: false
+  # override image, which is busybox by default
+  # image: busybox
+  # override image tag, which is latest by default
+  # imageTag:
+
+## Enable to add 3rd Party / Custom plugins not offered in the default OpenSearch image.
+plugins:
+  enabled: false
+  installList: []
+  # - example-fake-plugin
+
+# -- Array of extra K8s manifests to deploy
+extraObjects: []
+  # - apiVersion: secrets-store.csi.x-k8s.io/v1
+  #   kind: SecretProviderClass
+  #   metadata:
+  #     name: argocd-secrets-store
+  #   spec:
+  #     provider: aws
+  #     parameters:
+  #       objects: |
+  #         - objectName: "argocd"
+  #           objectType: "secretsmanager"
+  #           jmesPath:
+  #               - path: "client_id"
+  #                 objectAlias: "client_id"
+  #               - path: "client_secret"
+  #                 objectAlias: "client_secret"
+  #     secretObjects:
+  #     - data:
+  #       - key: client_id
+  #         objectName: client_id
+  #       - key: client_secret
+  #         objectName: client_secret
+  #       secretName: argocd-secrets-store
+  #       type: Opaque
+  #       labels:
+  #         app.kubernetes.io/part-of: argocd
+  # - |
+  #    apiVersion: policy/v1
+  #    kind: PodDisruptionBudget
+  #    metadata:
+  #      name: {{ template "opensearch.uname" . }}
+  #      labels:
+  #        {{- include "opensearch.labels" . | nindent 4 }}
+  #    spec:
+  #      minAvailable: 1
+  #      selector:
+  #        matchLabels:
+  #          {{- include "opensearch.selectorLabels" . | nindent 6 }}
