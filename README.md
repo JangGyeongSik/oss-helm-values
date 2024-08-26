@@ -23,7 +23,7 @@ This repository contains Helm values files for deploying a variety of open-sourc
 
 - **[ArgoCD](./ArgoCD):** A declarative, GitOps continuous delivery tool for Kubernetes.
 - **[Jenkins](./Jenkins):** The leading open-source automation server.
-- **[LGTM](./LGTM/Grafana/):** A tool for continuous integration, automated code review, and more.
+- **[LGTM](./LGTM/Grafana/):** Grafana LGTM is a lightweight, modular observability platform designed for monitoring and managing logs, metrics, and traces. It stands for Loki, Grafana, Tempo, and Mimir, which are the four core components. 
 Currently, only Grafana is distributed. The remaining components will be updated in the future
 - **[NeuVector](./neuvector/):** The Kubernetes-native container security platform.
 - **[Nginx-Ingress](./Nginx-Ingress/):** An Ingress controller that uses NGINX as a reverse proxy and load balancer.
