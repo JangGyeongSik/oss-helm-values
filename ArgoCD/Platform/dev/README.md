@@ -26,9 +26,8 @@ helm install argocd -n argocd-system argo/argo-cd -f argocd-values.yaml
 ```
 
 3. GKE Ingress 배포
- * Ingress Deploy
-    * [argocd-ke1ss-common-ingress.yaml](./argocd-ke1ss-common-ingress.yaml)
+ * Ingress Deploy    
  * ComputeSSLPolicy & Cloud Armor 생성 w/Config Connector
-    - [argocd-ke1ss-dev-ingress.yaml](https://gitlab.wemakeprice.cloud/wish-platform/481965497078/152502355868/prj-dev-wish-ke1ss-6213/-/blob/main/argocd-ke1ss-dev-ingress.yaml)
+    - argocd-platform-dev-ingress.yaml
 
 
